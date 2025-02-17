@@ -1,0 +1,269 @@
+openapi: 3.0.0
+info:
+  title: Currency API
+  version: 1.0.0
+tags:
+  - name: Currencies
+  - name: Rate Providers
+  - name: Conversion Rates
+  - name: Rate Correction Coefficients
+  - name: Shedlock
+
+paths:
+  /rate-providers:
+    get:
+      summary: Get list of rate providers
+      tags:
+        - Rate Providers
+      responses:
+        '200':
+          description: List of rate providers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RateProvider'
+
+  /rate-providers/{provider_code}:
+    get:
+      summary: Get rate provider by code
+      tags:
+        - Rate Providers
+      parameters:
+        - name: provider_code
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 3
+      responses:
+        '200':
+          description: Rate provider details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateProvider'
+
+  /conversion-rates:
+    get:
+      summary: Get list of conversion rates
+      tags:
+        - Conversion Rates
+      responses:
+        '200':
+          description: List of conversion rates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConversionRate'
+
+  /conversion-rates/{source_code}/{destination_code}:
+    get:
+      summary: Get conversion rate by currency pair
+      tags:
+        - Conversion Rates
+      parameters:
+        - name: source_code
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 3
+        - name: destination_code
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 3
+      responses:
+        '200':
+          description: Conversion rate details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversionRate'
+
+  /conversion-rates/refresh:
+    post:
+      summary: Trigger refresh of conversion rates from rate providers
+      tags:
+        - Conversion Rates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                provider_code:
+                  type: string
+                  maxLength: 3
+              required:
+                - provider_code
+      responses:
+        '200':
+          description: Conversion rates refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+
+components:
+  schemas:
+    Currency:
+      type: object
+      properties:
+        created_at:
+          type: string
+          format: date-time
+        modified_at:
+          type: string
+          format: date-time
+          nullable: true
+        code:
+          type: string
+          maxLength: 3
+        iso_code:
+          type: integer
+        description:
+          type: string
+          maxLength: 64
+        active:
+          type: boolean
+          default: true
+        scale:
+          type: integer
+        symbol:
+          type: string
+          maxLength: 2
+
+    RateProvider:
+      type: object
+      properties:
+        provider_code:
+          type: string
+          maxLength: 3
+        created_at:
+          type: string
+          format: date-time
+        modified_at:
+          type: string
+          format: date-time
+        provider_name:
+          type: string
+          maxLength: 28
+        description:
+          type: string
+          maxLength: 255
+        priority:
+          type: integer
+        active:
+          type: boolean
+          default: true
+        default_multiplier:
+          type: number
+          format: double
+          default: 1.0
+
+    ConversionRate:
+      type: object
+      properties:
+        created_at:
+          type: string
+          format: date-time
+        modified_at:
+          type: string
+          format: date-time
+          nullable: true
+        source_code:
+          type: string
+          maxLength: 3
+        destination_code:
+          type: string
+          maxLength: 3
+        rate_begin_time:
+          type: string
+          format: date-time
+        rate_end_time:
+          type: string
+          format: date-time
+        rate:
+          type: number
+          format: double
+        provider_code:
+          type: string
+          maxLength: 3
+          nullable: true
+        multiplier:
+          type: number
+          format: double
+        system_rate:
+          type: number
+          format: double
+
+    RateCorrectionCoefficient:
+      type: object
+      properties:
+        created_at:
+          type: string
+          format: date-time
+        modified_at:
+          type: string
+          format: date-time
+          nullable: true
+        archived:
+          type: boolean
+          default: false
+        source_code:
+          type: string
+        destination_code:
+          type: string
+        multiplier:
+          type: number
+          format: double
+        provider_code:
+          type: string
+          maxLength: 3
+          nullable: true
+        creator:
+          type: string
+          maxLength: 255
+          nullable: true
+        modifier:
+          type: string
+          maxLength: 255
+          nullable: true
+        date_from:
+          type: string
+          format: date
+          nullable: true
+        date_to:
+          type: string
+          format: date
+          nullable: true
+        profile_type:
+          type: string
+          maxLength: 50
+          nullable: true
+
+    Shedlock:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 64
+        lock_until:
+          type: string
+          format: date-time
+        locked_at:
+          type: string
+          format: date-time
+        locked_by:
+          type: string
+          maxLength: 255

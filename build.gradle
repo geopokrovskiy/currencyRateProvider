@@ -1,0 +1,81 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version "$springBootVersion"
+	id 'io.spring.dependency-management' version "$springDependencyManagementVersion"
+	id 'org.openapi.generator' version "$openApiVersion"
+}
+
+group = 'com.geopokrovskiy'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	sourceCompatibility = '21'
+}
+
+openApiGenerate {
+	generatorName = 'java'
+	inputSpec = "$rootDir/src/main/resources/currencies_openapi.yaml"
+	outputDir = "$buildDir/generated"
+	apiPackage = 'com.geopokrovskiy.api'
+	modelPackage = 'com.geopokrovskiy.dto'
+	configOptions = [
+			dateLibrary: 'java21',
+			library: 'resttemplate',
+			generateApis: 'true',
+			generateModels: 'true',
+			generateSupportingFiles: 'false',
+			generateModelTests: 'false',
+			generateApiTests: 'false',
+			hideGenerationTimestamp: 'true',
+			useJakartaEe: 'true'
+	]
+}
+
+tasks.compileJava.dependsOn tasks.openApiGenerate
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.session:spring-session-core'
+
+	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+	implementation "org.postgresql:postgresql:$postgreSqlVersion"
+	implementation "org.flywaydb:flyway-core:$flywayDbVersion"
+
+	implementation "org.projectlombok:lombok:$lombokVersion"
+	annotationProcessor "org.projectlombok:lombok"
+
+	//OpenAPI
+	implementation group: 'jakarta.annotation', name: 'jakarta.annotation-api', version: '3.0.0'
+	implementation group: 'org.openapitools', name: 'openapi-generator-gradle-plugin', version: '7.11.0'
+	implementation group: 'org.openapitools', name: 'jackson-databind-nullable', version: '0.2.6'
+
+	//MAPSTRUCT
+	implementation "org.mapstruct:mapstruct:$mapStructVersion"
+	annotationProcessor "org.mapstruct:mapstruct-processor:$mapStructVersion"
+
+
+}
+
+sourceSets {
+	main {
+		java {
+			srcDirs += "$buildDir/generated/src/main/java"
+		}
+	}
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
