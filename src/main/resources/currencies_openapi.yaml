@@ -60,12 +60,18 @@ paths:
                 items:
                   $ref: '#/components/schemas/ConversionRate'
 
-  /conversion-rates/{source_code}/{destination_code}:
+  /conversion-rates/{provider_code}/{source_code}/{destination_code}:
     get:
       summary: Get conversion rate by currency pair
       tags:
         - Conversion Rates
       parameters:
+        - name: provider_code
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 3
         - name: source_code
           in: path
           required: true

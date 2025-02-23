@@ -5,6 +5,8 @@ import com.geopokrovskiy.repository.CurrencyRepository;
 import lombok.Data;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @Data
 public class CurrencyService {
@@ -12,5 +14,9 @@ public class CurrencyService {
 
     public Currency getCurrencyByCode(String code) {
         return currencyRepository.findByCode(code).orElse(null);
+    }
+
+    public List<Currency> getAllCurrencies() {
+        return currencyRepository.findAll();
     }
 }

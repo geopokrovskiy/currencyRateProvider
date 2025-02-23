@@ -39,6 +39,10 @@ configurations {
 	}
 }
 
+configurations.configureEach {
+	exclude group: 'ch.qos.logback', module: 'logback-classic'
+}
+
 repositories {
 	mavenCentral()
 }
@@ -64,6 +68,16 @@ dependencies {
 	//MAPSTRUCT
 	implementation "org.mapstruct:mapstruct:$mapStructVersion"
 	annotationProcessor "org.mapstruct:mapstruct-processor:$mapStructVersion"
+
+	//Shedlock
+	implementation "net.javacrumbs.shedlock:shedlock-spring:${shedlockVersion}"
+	implementation "net.javacrumbs.shedlock:shedlock-provider-jdbc-template:${shedlockVersion}"
+
+	//TEST
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.security:spring-security-test'
+	testImplementation 'org.mockito:mockito-core'
+	testImplementation "org.junit.jupiter:junit-jupiter-api:$junitVersion"
 
 
 }

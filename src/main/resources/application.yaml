@@ -12,11 +12,13 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
   datasource:
-    url: jdbc:postgresql://localhost:5432/currency_rate_provider
+    url: jdbc:postgresql://host.docker.internal:5432/currency_rate_provider
+   # url: jdbc:postgresql://localhost:5432/currency_rate_provider
     username: postgres
     password: root
   flyway:
-    url: jdbc:postgresql://localhost:5432/currency_rate_provider
+    url: jdbc:postgresql://host.docker.internal:5432/currency_rate_provider
+    # url: jdbc:postgresql://localhost:5432/currency_rate_provider
     locations: classpath:db/migration
     user: ${spring.datasource.username}
     password: ${spring.datasource.password}
@@ -24,3 +26,5 @@ spring:
 logging:
   level:
     org.springframework.web: INFO
+
+interval-in-cron: "0 * * * * ?"

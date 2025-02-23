@@ -1,14 +1,18 @@
 package com.geopokrovskiy.service;
 
 import com.geopokrovskiy.entity.ConversionRate;
+import com.geopokrovskiy.entity.Currency;
 import com.geopokrovskiy.entity.RateProvider;
 import com.geopokrovskiy.repository.ConversionRateRepository;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Random;
 
 @Service
@@ -30,28 +34,11 @@ public class ConversionRateService {
         if ((currencyService.getCurrencyByCode(currencyCodeSource) == null) ||
                 (currencyService.getCurrencyByCode(currencyCodeDestination) == null)) return null;
         if (rateProviderService.getRateProvider(providerCode) != null) {
-            ConversionRate conversionRate = conversionRateRepository.findAll().stream().filter(
-                    cr -> cr.getProvider().getProviderCode().equals(providerCode)
-                            && cr.getSource().getCode().equals(currencyCodeSource)
-                            && cr.getDestination().getCode().equals(currencyCodeDestination)
-            ).findFirst().orElse(null);
+            ConversionRate conversionRate = conversionRateRepository.findConversionRateByCurrencySourceAndCurrencyDestinationAndProvider
+                    (providerCode, currencyCodeSource, currencyCodeDestination).getFirst();
             if (conversionRate != null) return conversionRate;
             if (GOOD_PROVIDER.equals(providerCode)) {
-                if (RUB.equals(currencyCodeSource) && USD.equals(currencyCodeDestination)) {
-                    return addNewRubToUsdGood(providerCode);
-                } else if (USD.equals(currencyCodeSource) && RUB.equals(currencyCodeDestination)) {
-                    return addNewUsdToRubGood(providerCode);
-                } else if (RUB.equals(currencyCodeSource) && EUR.equals(currencyCodeDestination)) {
-                    return addNewRubToEurGood(providerCode);
-                } else if (EUR.equals(currencyCodeSource) && RUB.equals(currencyCodeDestination)) {
-                    return addNewEurToRubGood(providerCode);
-                } else if (USD.equals(currencyCodeSource) && EUR.equals(currencyCodeDestination)) {
-                    return addNewUsdToEurGood(providerCode);
-                } else if (EUR.equals(currencyCodeSource) && USD.equals(currencyCodeDestination)) {
-                    return addNewEurToUsdGood(providerCode);
-                } else {
-                    throw new IllegalArgumentException("Unknown currencies");
-                }
+                return addNewConversionRateForProvider1(providerCode, currencyCodeSource, currencyCodeDestination);
             } else {
                 // Write some mock code for other providers
                 log.error("The provider {} is not yet supported", providerCode);
@@ -60,6 +47,12 @@ public class ConversionRateService {
         } else {
             return null;
         }
+    }
+
+    @Scheduled(cron = "${interval-in-cron}")
+    @SchedulerLock(name = "updateConversionRates", lockAtMostFor = "2m", lockAtLeastFor = "1m")
+    public Boolean updateConversionRate() {
+        return updateConversionRates(GOOD_PROVIDER);
     }
 
     public boolean updateConversionRates(String providerCode) {
@@ -71,23 +64,19 @@ public class ConversionRateService {
         } else {
             if (GOOD_PROVIDER.equals(providerCode)) {
                 // Mock code for the good provider
-                log.info("EUR to RUB conversion rate has been updated");
-                addNewEurToRubGood(providerCode);
+                List<Currency> currencyList = currencyService.getAllCurrencies();
+                for (int i = 0; i < currencyList.size(); i++) {
+                    for (int j = i + 1; j < currencyList.size(); j++) {
+                        Currency currency1 = currencyList.get(i);
+                        Currency currency2 = currencyList.get(j);
 
-                log.info("RUB to EUR conversion rate has been updated");
-                addNewRubToEurGood(providerCode);
+                        addNewConversionRateForProvider1(providerCode, currency1.getCode(), currency2.getCode());
+                        log.info("Conversion rate for {} and {} has been updated", currency1.getCode(), currency2.getCode());
 
-                log.info("USD to EUR conversion rate has been updated");
-                addNewUsdToEurGood(providerCode);
-
-                log.info("EUR to USD conversion rate has been updated");
-                addNewEurToUsdGood(providerCode);
-
-                log.info("RUB to USD conversion rate has been updated");
-                addNewRubToUsdGood(providerCode);
-
-                log.info("USD to RUB conversion rate has been updated");
-                addNewUsdToRubGood(providerCode);
+                        addNewConversionRateForProvider1(providerCode, currency2.getCode(), currency1.getCode());
+                        log.info("Conversion rate for {} and {} has been updated", currency2.getCode(), currency1.getCode());
+                    }
+                }
 
                 return true;
             } else {
@@ -98,15 +87,20 @@ public class ConversionRateService {
         }
     }
 
-    private ConversionRate addNewRubToUsdGood(String providerCode) {
-        double coefficient = 1 / (30 + (new Random().nextDouble() - 0.5) * 2);
+    private ConversionRate addNewConversionRateForProvider1(String providerCode, String currencyCodeSource, String currencyCodeDestination) {
+        double coefficient = (30 + (new Random().nextDouble() - 2) * 2);
+        Currency currencySource = currencyService.getCurrencyByCode(currencyCodeSource);
+        Currency currencyDestination = currencyService.getCurrencyByCode(currencyCodeDestination);
+        if (currencyDestination == null || currencySource == null) {
+            throw new IllegalArgumentException("The currency destination or source are null");
+        }
         return conversionRateRepository.save(new ConversionRate().
                 toBuilder().
                 createdAt(LocalDateTime.now())
                 .modifiedAt(LocalDateTime.now())
                 .provider(rateProviderService.getRateProvider(providerCode))
-                .source(currencyService.getCurrencyByCode(RUB))
-                .destination(currencyService.getCurrencyByCode(USD))
+                .source(currencyService.getCurrencyByCode(currencyCodeSource))
+                .destination(currencyService.getCurrencyByCode(currencyCodeDestination))
                 .multiplier(BigDecimal.ONE)
                 .rate(new BigDecimal(coefficient))
                 .systemRate(BigDecimal.ONE)
@@ -117,98 +111,5 @@ public class ConversionRateService {
                 .build());
     }
 
-    private ConversionRate addNewUsdToRubGood(String providerCode) {
-        double coefficient = 29 + (new Random().nextDouble() - 0.5) * 2;
-        return conversionRateRepository.save(new ConversionRate().
-                toBuilder().
-                createdAt(LocalDateTime.now())
-                .modifiedAt(LocalDateTime.now())
-                .provider(rateProviderService.getRateProvider(providerCode))
-                .source(currencyService.getCurrencyByCode(USD))
-                .destination(currencyService.getCurrencyByCode(RUB))
-                .multiplier(BigDecimal.ONE)
-                .rate(new BigDecimal(coefficient))
-                .systemRate(BigDecimal.ONE)
-                .rateBeginTime(LocalDateTime.now())
 
-                // TODO add logic of cron based rate update
-                .rateEndTime(LocalDateTime.now().plusMinutes(15))
-                .build());
-    }
-
-    private ConversionRate addNewRubToEurGood(String providerCode) {
-        double coefficient = 1 / (40 + (new Random().nextDouble() - 0.5) * 2);
-        return conversionRateRepository.save(new ConversionRate().
-                toBuilder().
-                createdAt(LocalDateTime.now())
-                .modifiedAt(LocalDateTime.now())
-                .provider(rateProviderService.getRateProvider(providerCode))
-                .source(currencyService.getCurrencyByCode(RUB))
-                .destination(currencyService.getCurrencyByCode(EUR))
-                .multiplier(BigDecimal.ONE)
-                .rate(new BigDecimal(coefficient))
-                .systemRate(BigDecimal.ONE)
-                .rateBeginTime(LocalDateTime.now())
-
-                // TODO add logic of cron based rate update
-                .rateEndTime(LocalDateTime.now().plusMinutes(15))
-                .build());
-    }
-
-    private ConversionRate addNewEurToRubGood(String providerCode) {
-        double coefficient = 39 + (new Random().nextDouble() - 0.5) * 2;
-        return conversionRateRepository.save(new ConversionRate().
-                toBuilder().
-                createdAt(LocalDateTime.now())
-                .modifiedAt(LocalDateTime.now())
-                .provider(rateProviderService.getRateProvider(providerCode))
-                .source(currencyService.getCurrencyByCode(EUR))
-                .destination(currencyService.getCurrencyByCode(RUB))
-                .multiplier(BigDecimal.ONE)
-                .rate(new BigDecimal(coefficient))
-                .systemRate(BigDecimal.ONE)
-                .rateBeginTime(LocalDateTime.now())
-
-                // TODO add logic of cron based rate update
-                .rateEndTime(LocalDateTime.now().plusMinutes(15))
-                .build());
-    }
-
-    private ConversionRate addNewEurToUsdGood(String providerCode) {
-        double coefficient = 1.1 + (new Random().nextDouble() - 0.5) * 2;
-        return conversionRateRepository.save(new ConversionRate().
-                toBuilder().
-                createdAt(LocalDateTime.now())
-                .modifiedAt(LocalDateTime.now())
-                .provider(rateProviderService.getRateProvider(providerCode))
-                .source(currencyService.getCurrencyByCode(EUR))
-                .destination(currencyService.getCurrencyByCode(USD))
-                .multiplier(BigDecimal.ONE)
-                .rate(new BigDecimal(coefficient))
-                .systemRate(BigDecimal.ONE)
-                .rateBeginTime(LocalDateTime.now())
-
-                // TODO add logic of cron based rate update
-                .rateEndTime(LocalDateTime.now().plusMinutes(15))
-                .build());
-    }
-
-    private ConversionRate addNewUsdToEurGood(String providerCode) {
-        double coefficient = 0.95 + (new Random().nextDouble() - 0.5) * 2;
-        return conversionRateRepository.save(new ConversionRate().
-                toBuilder().
-                createdAt(LocalDateTime.now())
-                .modifiedAt(LocalDateTime.now())
-                .provider(rateProviderService.getRateProvider(providerCode))
-                .source(currencyService.getCurrencyByCode(USD))
-                .destination(currencyService.getCurrencyByCode(EUR))
-                .multiplier(BigDecimal.ONE)
-                .rate(new BigDecimal(coefficient))
-                .systemRate(BigDecimal.ONE)
-                .rateBeginTime(LocalDateTime.now())
-
-                // TODO add logic of cron based rate update
-                .rateEndTime(LocalDateTime.now().plusMinutes(15))
-                .build());
-    }
 }
