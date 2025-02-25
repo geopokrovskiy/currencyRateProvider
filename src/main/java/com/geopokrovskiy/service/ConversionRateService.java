@@ -34,9 +34,9 @@ public class ConversionRateService {
         if ((currencyService.getCurrencyByCode(currencyCodeSource) == null) ||
                 (currencyService.getCurrencyByCode(currencyCodeDestination) == null)) return null;
         if (rateProviderService.getRateProvider(providerCode) != null) {
-            ConversionRate conversionRate = conversionRateRepository.findConversionRateByCurrencySourceAndCurrencyDestinationAndProvider
-                    (providerCode, currencyCodeSource, currencyCodeDestination).getFirst();
-            if (conversionRate != null) return conversionRate;
+            List<ConversionRate> conversionRates = conversionRateRepository.findConversionRateByCurrencySourceAndCurrencyDestinationAndProvider
+                    (providerCode, currencyCodeSource, currencyCodeDestination);
+            if (!conversionRates.isEmpty()) return conversionRates.getFirst();
             if (GOOD_PROVIDER.equals(providerCode)) {
                 return addNewConversionRateForProvider1(providerCode, currencyCodeSource, currencyCodeDestination);
             } else {
@@ -105,8 +105,6 @@ public class ConversionRateService {
                 .rate(new BigDecimal(coefficient))
                 .systemRate(BigDecimal.ONE)
                 .rateBeginTime(LocalDateTime.now())
-
-                // TODO add logic of cron based rate update
                 .rateEndTime(LocalDateTime.now().plusMinutes(15))
                 .build());
     }

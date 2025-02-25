@@ -12,14 +12,12 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
   datasource:
-  #  url: jdbc:postgresql://host.docker.internal:5432/currency_rate_provider
-    url: jdbc:postgresql://localhost:5432/currency_rate_provider
+    url: jdbc:postgresql:///integration_test_db?TC_IMAGE_TAG=14-alpine
     username: postgres
     password: root
   flyway:
-  #  url: jdbc:postgresql://host.docker.internal:5432/currency_rate_provider
-    url: jdbc:postgresql://localhost:5432/currency_rate_provider
-    locations: classpath:db/migration
+    url: jdbc:postgresql:///integration_test_db?TC_IMAGE_TAG=14-alpine
+    locations: classpath:db/test-migration
     user: ${spring.datasource.username}
     password: ${spring.datasource.password}
 
